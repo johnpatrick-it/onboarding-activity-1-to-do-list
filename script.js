@@ -11,7 +11,7 @@ class TaskManager {
         this.bindEvents();
         this.render();
     }
-
+    // MY CACHEC
     cacheDOMElements() {
         this.taskInput = document.getElementById('taskInput');
         this.addBtn = document.getElementById('addBtn');
@@ -31,7 +31,8 @@ class TaskManager {
             btn.addEventListener('click', (e) => this.setFilter(e.target.dataset.filter));
         });
     }
-
+    
+//MY CRUDE OPERATIONS
     // CREATE - Add new task
     addTask() {
         const text = this.taskInput.value.trim();
