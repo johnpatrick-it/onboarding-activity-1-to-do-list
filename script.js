@@ -96,15 +96,18 @@ class ApiService {
 
 // Task Manager Class
 class TaskManager {
+    //updated constructor
     constructor() {
-        this.tasks = this.loadTasks();
+        this.tasks = [];
+        this.apiService = new ApiService();
         this.currentFilter = 'all';
         this.init();
     }
-
-    init() {
+//change to asycn
+    async init() {
         this.cacheDOMElements();
         this.bindEvents();
+        await this.loadTasks()
         this.render();
     }
     // MY CACHEC
@@ -130,31 +133,46 @@ class TaskManager {
     
 //MY CRUDE OPERATIONS
     // CREATE - Add new task
-    addTask() {
+    async addTask() {
         const text = this.taskInput.value.trim();
         if (!text) {
             alert('Please enter a task!');
             return;
         }
 
-        const task = {
-            id: Date.now(),
-            text: text,
-            completed: false,
-            createdAt: new Date().toISOString()
-        };
-
-        this.tasks.push(task);
-        this.saveTasks();
-        this.render();
-        this.taskInput.value = '';
-        this.taskInput.focus();
+        try {
+            const apiTodo = await this.apiService.create(text);
+            // Add to local array
+            this.tasks.push({
+                id: apiTodo.id,
+                text: apiTodo.title,
+                completed: apiTodo.isCompleted,
+                createdAt: apiTodo.createdDate
+            });
+            this.render();
+            this.taskInput.value = '';
+            this.taskInput.focus();
+        } catch (error) {
+            alert('Failed to create todo');
+            console.error(error);
+        }
     }
 
     // READ - Load tasks from Local Storage
-    loadTasks() {
-        const tasksJSON = localStorage.getItem('tasks');
-        return tasksJSON ? JSON.parse(tasksJSON) : [];
+    async loadTasks() {
+        try {
+            const apiTodos = await this.apiService.fetchAll();
+            // Map API format to front-end format
+            this.tasks = apiTodos.map(todo => ({
+                id: todo.id,
+                text: todo.title,
+                completed: todo.isCompleted,
+                createdAt: todo.createdDate
+            }));
+        } catch (error) {
+            alert('Failed to load todos from server');
+            console.error(error);
+        }
     }
 
     // UPDATE - Save tasks to Local Storage
@@ -163,30 +181,46 @@ class TaskManager {
     }
 
     // UPDATE - Toggle task completion
-    toggleTask(id) {
+    async toggleTask(id) {
         const task = this.tasks.find(t => t.id === id);
         if (task) {
-            task.completed = !task.completed;
-            this.saveTasks();
-            this.render();
+            try {
+                const newCompleted = !task.completed;
+                await this.apiService.update(id, task.text, newCompleted);
+                task.completed = newCompleted;
+                this.render();
+            } catch (error) {
+                alert('Failed to update todo');
+                console.error(error);
+            }
         }
     }
 
     // UPDATE - Edit task text
-    editTask(id, newText) {
+    async editTask(id, newText) {
         const task = this.tasks.find(t => t.id === id);
         if (task && newText.trim()) {
-            task.text = newText.trim();
-            this.saveTasks();
-            this.render();
+            try {
+                await this.apiService.update(id, newText.trim(), task.completed);
+                task.text = newText.trim();
+                this.render();
+            } catch (error) {
+                alert('Failed to update todo');
+                console.error(error);
+            }
         }
     }
 
     // DELETE - Remove task
-    deleteTask(id) {
-        this.tasks = this.tasks.filter(t => t.id !== id);
-        this.saveTasks();
-        this.render();
+    async deleteTask(id) {
+        try {
+            await this.apiService.delete(id);
+            this.tasks = this.tasks.filter(t => t.id !== id);
+            this.render();
+        } catch (error) {
+            alert('Failed to delete todo');
+            console.error(error);
+        }
     }
 
     // DELETE - Clear all completed tasks
