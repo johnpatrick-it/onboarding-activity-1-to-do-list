@@ -1,3 +1,99 @@
+// API Service Layer - Handles all communication with backend
+class ApiService {
+    constructor() {
+        // Base URL of your .NET API
+        this.baseUrl = 'http://localhost:5000/api/todos';
+    }
+
+    // GET: Fetch all todos
+    async fetchTodos() {
+        try {
+            const response = await fetch(this.baseUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const todos = await response.json();
+            return todos;
+        } catch (error) {
+            console.error('Error fetching todos:', error);
+            throw error;
+        }
+    }
+
+    // GET: Fetch single todo by ID
+    async fetchTodoById(id) {
+        try {
+            const response = await fetch(`${this.baseUrl}/${id}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const todo = await response.json();
+            return todo;
+        } catch (error) {
+            console.error('Error fetching todo:', error);
+            throw error;
+        }
+    }
+
+    // POST: Create new todo
+    async createTodo(todoData) {
+        try {
+            const response = await fetch(this.baseUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(todoData)
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const newTodo = await response.json();
+            return newTodo;
+        } catch (error) {
+            console.error('Error creating todo:', error);
+            throw error;
+        }
+    }
+
+    // PUT: Update existing todo
+    async updateTodo(id, todoData) {
+        try {
+            const response = await fetch(`${this.baseUrl}/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(todoData)
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const updatedTodo = await response.json();
+            return updatedTodo;
+        } catch (error) {
+            console.error('Error updating todo:', error);
+            throw error;
+        }
+    }
+
+    // DELETE: Delete todo
+    async deleteTodo(id) {
+        try {
+            const response = await fetch(`${this.baseUrl}/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return true;
+        } catch (error) {
+            console.error('Error deleting todo:', error);
+            throw error;
+        }
+    }
+}
+
 // Task Manager Class
 class TaskManager {
     constructor() {
