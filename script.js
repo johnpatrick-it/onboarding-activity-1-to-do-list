@@ -2,7 +2,7 @@
 class ApiService {
     constructor() {
         // Base URL of your .NET API
-        this.baseUrl = 'http://localhost:5000/api/todos';
+        this.baseUrl = 'http://localhost:5282/api/todos';
     }
 
     // GET: Fetch all todos
@@ -140,28 +140,32 @@ class TaskManager {
             return;
         }
 
-        try {
-            const apiTodo = await this.apiService.create(text);
-            // Add to local array
-            this.tasks.push({
-                id: apiTodo.id,
-                text: apiTodo.title,
-                completed: apiTodo.isCompleted,
-                createdAt: apiTodo.createdDate
-            });
-            this.render();
-            this.taskInput.value = '';
-            this.taskInput.focus();
-        } catch (error) {
-            alert('Failed to create todo');
-            console.error(error);
-        }
+      try {
+          // Change from create(text) to createTodo() with proper object
+          const apiTodo = await this.apiService.createTodo({
+              title: text,
+              description: '',
+              isCompleted: false
+          });
+          this.tasks.push({
+              id: apiTodo.id,
+              text: apiTodo.title,
+              completed: apiTodo.isCompleted,
+              createdAt: apiTodo.createdDate
+          });
+          this.render();
+          this.taskInput.value = '';
+          this.taskInput.focus();
+      } catch (error) {
+          alert('Failed to create todo');
+          console.error(error);
+      }
     }
 
     // READ - Load tasks from Local Storage
     async loadTasks() {
         try {
-            const apiTodos = await this.apiService.fetchAll();
+            const apiTodos = await this.apiService.fetchTodos();
             // Map API format to front-end format
             this.tasks = apiTodos.map(todo => ({
                 id: todo.id,
@@ -186,7 +190,13 @@ class TaskManager {
         if (task) {
             try {
                 const newCompleted = !task.completed;
-                await this.apiService.update(id, task.text, newCompleted);
+                // Fixed: using updateTodo with proper object
+                await this.apiService.updateTodo(id, {
+                    title: task.text,
+                    description: '',
+                    isCompleted: newCompleted,
+                    completedDate: newCompleted ? new Date().toISOString() : null
+                });
                 task.completed = newCompleted;
                 this.render();
             } catch (error) {
@@ -201,7 +211,12 @@ class TaskManager {
         const task = this.tasks.find(t => t.id === id);
         if (task && newText.trim()) {
             try {
-                await this.apiService.update(id, newText.trim(), task.completed);
+                await this.apiService.updateTodo(id, {
+                    title: newText.trim(),
+                    description: '',
+                    isCompleted: task.completed,
+                    completedDate: task.completed ? new Date().toISOString() : null
+                });
                 task.text = newText.trim();
                 this.render();
             } catch (error) {
@@ -214,7 +229,7 @@ class TaskManager {
     // DELETE - Remove task
     async deleteTask(id) {
         try {
-            await this.apiService.delete(id);
+            await this.apiService.deleteTodo(id);
             this.tasks = this.tasks.filter(t => t.id !== id);
             this.render();
         } catch (error) {
