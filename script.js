@@ -1,14 +1,37 @@
 // API Service Layer - Handles all communication with backend
 class ApiService {
     constructor() {
-        // Base URL of your .NET API
-        this.baseUrl = 'http://localhost:5000/api/todos';
+        // FIXED: Changed port from 5000 to 5282
+        this.baseUrl = 'http://localhost:5282/api/todos';
+    }
+
+    // Get auth headers
+    getHeaders() {
+        const token = getToken();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+    }
+
+    // Handle 401 Unauthorized responses
+    handleUnauthorized(response) {
+        if (response.status === 401) {
+            logout();
+            return true;
+        }
+        return false;
     }
 
     // GET: Fetch all todos
     async fetchTodos() {
         try {
-            const response = await fetch(this.baseUrl);
+            const response = await fetch(this.baseUrl, {
+                headers: this.getHeaders()
+            });
+
+            if (this.handleUnauthorized(response)) return [];
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -23,7 +46,12 @@ class ApiService {
     // GET: Fetch single todo by ID
     async fetchTodoById(id) {
         try {
-            const response = await fetch(`${this.baseUrl}/${id}`);
+            const response = await fetch(`${this.baseUrl}/${id}`, {
+                headers: this.getHeaders()
+            });
+
+            if (this.handleUnauthorized(response)) return null;
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -40,11 +68,12 @@ class ApiService {
         try {
             const response = await fetch(this.baseUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: this.getHeaders(),
                 body: JSON.stringify(todoData)
             });
+
+            if (this.handleUnauthorized(response)) return null;
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -61,11 +90,12 @@ class ApiService {
         try {
             const response = await fetch(`${this.baseUrl}/${id}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: this.getHeaders(),
                 body: JSON.stringify(todoData)
             });
+
+            if (this.handleUnauthorized(response)) return null;
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -81,8 +111,12 @@ class ApiService {
     async deleteTodo(id) {
         try {
             const response = await fetch(`${this.baseUrl}/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: this.getHeaders()
             });
+
+            if (this.handleUnauthorized(response)) return false;
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -96,21 +130,26 @@ class ApiService {
 
 // Task Manager Class
 class TaskManager {
-    //updated constructor
     constructor() {
         this.tasks = [];
         this.apiService = new ApiService();
         this.currentFilter = 'all';
         this.init();
     }
-//change to asycn
+
     async init() {
+        // AUTHENTICATION CHECK - Redirect to login if not authenticated
+        requireAuth();
+
+        // Display user info in header
+        displayUserInfo();
+
         this.cacheDOMElements();
         this.bindEvents();
-        await this.loadTasks()
+        await this.loadTasks();
         this.render();
     }
-    // MY CACHEC
+
     cacheDOMElements() {
         this.taskInput = document.getElementById('taskInput');
         this.addBtn = document.getElementById('addBtn');
@@ -118,6 +157,7 @@ class TaskManager {
         this.taskCount = document.getElementById('taskCount');
         this.clearCompletedBtn = document.getElementById('clearCompleted');
         this.filterBtns = document.querySelectorAll('.filter-btn');
+        this.logoutBtn = document.getElementById('logoutBtn');
     }
 
     bindEvents() {
@@ -129,9 +169,15 @@ class TaskManager {
         this.filterBtns.forEach(btn => {
             btn.addEventListener('click', (e) => this.setFilter(e.target.dataset.filter));
         });
+
+        // LOGOUT FUNCTIONALITY
+        this.logoutBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to logout?')) {
+                logout();
+            }
+        });
     }
-    
-//MY CRUDE OPERATIONS
+
     // CREATE - Add new task
     async addTask() {
         const text = this.taskInput.value.trim();
@@ -141,7 +187,14 @@ class TaskManager {
         }
 
         try {
-            const apiTodo = await this.apiService.create(text);
+            const apiTodo = await this.apiService.createTodo({
+                title: text,
+                description: '',
+                isCompleted: false
+            });
+
+            if (!apiTodo) return; // Unauthorized handled by API service
+
             // Add to local array
             this.tasks.push({
                 id: apiTodo.id,
@@ -158,10 +211,10 @@ class TaskManager {
         }
     }
 
-    // READ - Load tasks from Local Storage
+    // READ - Load tasks from API
     async loadTasks() {
         try {
-            const apiTodos = await this.apiService.fetchAll();
+            const apiTodos = await this.apiService.fetchTodos();
             // Map API format to front-end format
             this.tasks = apiTodos.map(todo => ({
                 id: todo.id,
@@ -175,18 +228,21 @@ class TaskManager {
         }
     }
 
-    // UPDATE - Save tasks to Local Storage
-    saveTasks() {
-        localStorage.setItem('tasks', JSON.stringify(this.tasks));
-    }
-
     // UPDATE - Toggle task completion
     async toggleTask(id) {
         const task = this.tasks.find(t => t.id === id);
         if (task) {
             try {
                 const newCompleted = !task.completed;
-                await this.apiService.update(id, task.text, newCompleted);
+                const apiTodo = await this.apiService.updateTodo(id, {
+                    title: task.text,
+                    description: '',
+                    isCompleted: newCompleted,
+                    completedDate: newCompleted ? new Date().toISOString() : null
+                });
+
+                if (!apiTodo) return; // Unauthorized handled by API service
+
                 task.completed = newCompleted;
                 this.render();
             } catch (error) {
@@ -201,7 +257,15 @@ class TaskManager {
         const task = this.tasks.find(t => t.id === id);
         if (task && newText.trim()) {
             try {
-                await this.apiService.update(id, newText.trim(), task.completed);
+                const apiTodo = await this.apiService.updateTodo(id, {
+                    title: newText.trim(),
+                    description: '',
+                    isCompleted: task.completed,
+                    completedDate: task.completed ? new Date().toISOString() : null
+                });
+
+                if (!apiTodo) return; // Unauthorized handled by API service
+
                 task.text = newText.trim();
                 this.render();
             } catch (error) {
@@ -214,9 +278,11 @@ class TaskManager {
     // DELETE - Remove task
     async deleteTask(id) {
         try {
-            await this.apiService.delete(id);
-            this.tasks = this.tasks.filter(t => t.id !== id);
-            this.render();
+            const success = await this.apiService.deleteTodo(id);
+            if (success) {
+                this.tasks = this.tasks.filter(t => t.id !== id);
+                this.render();
+            }
         } catch (error) {
             alert('Failed to delete todo');
             console.error(error);
@@ -224,17 +290,25 @@ class TaskManager {
     }
 
     // DELETE - Clear all completed tasks
-    clearCompleted() {
-        const completedCount = this.tasks.filter(t => t.completed).length;
-        if (completedCount === 0) {
+    async clearCompleted() {
+        const completedTasks = this.tasks.filter(t => t.completed);
+        if (completedTasks.length === 0) {
             alert('No completed tasks to clear!');
             return;
         }
 
-        if (confirm(`Delete ${completedCount} completed task(s)?`)) {
-            this.tasks = this.tasks.filter(t => !t.completed);
-            this.saveTasks();
-            this.render();
+        if (confirm(`Delete ${completedTasks.length} completed task(s)?`)) {
+            try {
+                // Delete all completed tasks from API
+                await Promise.all(completedTasks.map(task => this.apiService.deleteTodo(task.id)));
+
+                // Update local state
+                this.tasks = this.tasks.filter(t => !t.completed);
+                this.render();
+            } catch (error) {
+                alert('Failed to clear completed todos');
+                console.error(error);
+            }
         }
     }
 
