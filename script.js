@@ -1,7 +1,6 @@
 // API Service Layer - Handles all communication with backend
 class ApiService {
     constructor() {
-        // FIXED: Changed port from 5000 to 5282
         this.baseUrl = 'http://localhost:5282/api/todos';
     }
 
