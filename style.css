@@ -29,12 +29,13 @@ h1 {
 
 .input-section {
     display: flex;
+    flex-direction: column;
     gap: 10px;
     margin-bottom: 20px;
 }
 
 #taskInput {
-    flex: 1;
+    width: 100%;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -42,6 +43,22 @@ h1 {
 }
 
 #taskInput:focus {
+    outline: none;
+    border-color: #4CAF50;
+}
+
+#descriptionInput {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    resize: vertical;
+    min-height: 50px;
+}
+
+#descriptionInput:focus {
     outline: none;
     border-color: #4CAF50;
 }
@@ -103,7 +120,7 @@ h1 {
     border-radius: 4px;
     border: 1px solid #e0e0e0;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
 }
 
@@ -124,35 +141,62 @@ h1 {
     width: 20px;
     height: 20px;
     cursor: pointer;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.task-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
 }
 
 .task-text {
-    flex: 1;
     font-size: 16px;
     color: #333;
     word-break: break-word;
+    font-weight: 500;
 }
 
-.task-text.editing {
-    display: none;
+.task-description {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+    word-break: break-word;
+    line-height: 1.4;
 }
 
-.task-input {
+.task-edit-inputs {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.task-title-input {
+    width: 100%;
     padding: 8px;
     border: 2px solid #667eea;
     border-radius: 5px;
     font-size: 16px;
-    display: none;
 }
 
-.task-input.active {
-    display: block;
+.task-description-input {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid #667eea;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    resize: vertical;
+    min-height: 50px;
 }
 
 .task-actions {
     display: flex;
     gap: 5px;
+    flex-shrink: 0;
 }
 
 .btn-edit,

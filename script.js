@@ -151,6 +151,7 @@ class TaskManager {
 
     cacheDOMElements() {
         this.taskInput = document.getElementById('taskInput');
+        this.descriptionInput = document.getElementById('descriptionInput');
         this.addBtn = document.getElementById('addBtn');
         this.taskList = document.getElementById('taskList');
         this.taskCount = document.getElementById('taskCount');
@@ -180,6 +181,8 @@ class TaskManager {
     // CREATE - Add new task
     async addTask() {
         const text = this.taskInput.value.trim();
+        const description = this.descriptionInput.value.trim();
+
         if (!text) {
             alert('Please enter a task!');
             return;
@@ -188,7 +191,7 @@ class TaskManager {
         try {
             const apiTodo = await this.apiService.createTodo({
                 title: text,
-                description: '',
+                description: description,
                 isCompleted: false
             });
 
@@ -198,11 +201,13 @@ class TaskManager {
             this.tasks.push({
                 id: apiTodo.id,
                 text: apiTodo.title,
+                description: apiTodo.description,
                 completed: apiTodo.isCompleted,
                 createdAt: apiTodo.createdDate
             });
             this.render();
             this.taskInput.value = '';
+            this.descriptionInput.value = '';
             this.taskInput.focus();
         } catch (error) {
             alert('Failed to create todo');
@@ -218,6 +223,7 @@ class TaskManager {
             this.tasks = apiTodos.map(todo => ({
                 id: todo.id,
                 text: todo.title,
+                description: todo.description || '',
                 completed: todo.isCompleted,
                 createdAt: todo.createdDate
             }));
@@ -235,7 +241,7 @@ class TaskManager {
                 const newCompleted = !task.completed;
                 const apiTodo = await this.apiService.updateTodo(id, {
                     title: task.text,
-                    description: '',
+                    description: task.description || '',
                     isCompleted: newCompleted,
                     completedDate: newCompleted ? new Date().toISOString() : null
                 });
@@ -251,14 +257,14 @@ class TaskManager {
         }
     }
 
-    // UPDATE - Edit task text
-    async editTask(id, newText) {
+    // UPDATE - Edit task text and description
+    async editTask(id, newText, newDescription) {
         const task = this.tasks.find(t => t.id === id);
         if (task && newText.trim()) {
             try {
                 const apiTodo = await this.apiService.updateTodo(id, {
                     title: newText.trim(),
-                    description: '',
+                    description: newDescription?.trim() || '',
                     isCompleted: task.completed,
                     completedDate: task.completed ? new Date().toISOString() : null
                 });
@@ -266,6 +272,7 @@ class TaskManager {
                 if (!apiTodo) return; // Unauthorized handled by API service
 
                 task.text = newText.trim();
+                task.description = newDescription?.trim() || '';
                 this.render();
             } catch (error) {
                 alert('Failed to update todo');
@@ -346,11 +353,21 @@ class TaskManager {
     }
 
     createTaskHTML(task) {
+        const descriptionHTML = task.description
+            ? `<p class="task-description">${this.escapeHTML(task.description)}</p>`
+            : '';
+
         return `
             <li class="task-item ${task.completed ? 'completed' : ''}" data-id="${task.id}">
                 <input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''}>
-                <span class="task-text">${this.escapeHTML(task.text)}</span>
-                <input type="text" class="task-input" value="${this.escapeHTML(task.text)}">
+                <div class="task-content">
+                    <span class="task-text">${this.escapeHTML(task.text)}</span>
+                    ${descriptionHTML}
+                </div>
+                <div class="task-edit-inputs" style="display:none;">
+                    <input type="text" class="task-title-input" value="${this.escapeHTML(task.text)}">
+                    <textarea class="task-description-input" rows="2">${this.escapeHTML(task.description || '')}</textarea>
+                </div>
                 <div class="task-actions">
                     <button class="btn-edit">Edit</button>
                     <button class="btn-delete">Delete</button>
@@ -401,8 +418,8 @@ class TaskManager {
             });
         });
 
-        // Enter key to save edit
-        document.querySelectorAll('.task-input').forEach(input => {
+        // Enter key to save edit (on title input only)
+        document.querySelectorAll('.task-title-input').forEach(input => {
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     this.saveEdit(e.target.closest('.task-item'));
@@ -412,54 +429,62 @@ class TaskManager {
     }
 
     enterEditMode(taskItem) {
-        const taskText = taskItem.querySelector('.task-text');
-        const taskInput = taskItem.querySelector('.task-input');
+        const taskContent = taskItem.querySelector('.task-content');
+        const taskEditInputs = taskItem.querySelector('.task-edit-inputs');
+        const taskTitleInput = taskItem.querySelector('.task-title-input');
         const editBtn = taskItem.querySelector('.btn-edit');
         const deleteBtn = taskItem.querySelector('.btn-delete');
         const saveBtn = taskItem.querySelector('.btn-save');
         const cancelBtn = taskItem.querySelector('.btn-cancel');
 
-        taskText.classList.add('editing');
-        taskInput.classList.add('active');
+        taskContent.style.display = 'none';
+        taskEditInputs.style.display = 'block';
         editBtn.style.display = 'none';
         deleteBtn.style.display = 'none';
         saveBtn.style.display = 'inline-block';
         cancelBtn.style.display = 'inline-block';
-        taskInput.focus();
-        taskInput.select();
+        taskTitleInput.focus();
+        taskTitleInput.select();
     }
 
     saveEdit(taskItem) {
         const id = parseInt(taskItem.dataset.id);
-        const taskInput = taskItem.querySelector('.task-input');
-        const newText = taskInput.value.trim();
+        const taskTitleInput = taskItem.querySelector('.task-title-input');
+        const taskDescriptionInput = taskItem.querySelector('.task-description-input');
+        const newText = taskTitleInput.value.trim();
+        const newDescription = taskDescriptionInput.value.trim();
 
         if (!newText) {
-            alert('Task cannot be empty!');
+            alert('Task title cannot be empty!');
             return;
         }
 
-        this.editTask(id, newText);
+        this.editTask(id, newText, newDescription);
     }
 
     cancelEdit(taskItem) {
-        const taskText = taskItem.querySelector('.task-text');
-        const taskInput = taskItem.querySelector('.task-input');
+        const taskContent = taskItem.querySelector('.task-content');
+        const taskEditInputs = taskItem.querySelector('.task-edit-inputs');
+        const taskTitleInput = taskItem.querySelector('.task-title-input');
+        const taskDescriptionInput = taskItem.querySelector('.task-description-input');
         const editBtn = taskItem.querySelector('.btn-edit');
         const deleteBtn = taskItem.querySelector('.btn-delete');
         const saveBtn = taskItem.querySelector('.btn-save');
         const cancelBtn = taskItem.querySelector('.btn-cancel');
 
-        taskText.classList.remove('editing');
-        taskInput.classList.remove('active');
+        taskContent.style.display = 'block';
+        taskEditInputs.style.display = 'none';
         editBtn.style.display = 'inline-block';
         deleteBtn.style.display = 'inline-block';
         saveBtn.style.display = 'none';
         cancelBtn.style.display = 'none';
 
-        // Reset input value to original
+        // Reset input values to original
         const task = this.tasks.find(t => t.id === parseInt(taskItem.dataset.id));
-        taskInput.value = task ? task.text : '';
+        if (task) {
+            taskTitleInput.value = task.text;
+            taskDescriptionInput.value = task.description || '';
+        }
     }
 
     updateTaskCount() {
