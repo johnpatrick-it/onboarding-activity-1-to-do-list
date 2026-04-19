@@ -3,14 +3,40 @@ const { createApp } = Vue;
 const TodoApp = {
   data() {
     return {
-      message: 'Vue.js with API service ready!',
-      apiService: new ApiService()
+      tasks: [],
+      apiService: new ApiService(),
+      currentFilter: 'all',
+      userInfo: null
     }
   },
-  mounted() {
-    // Initialize authentication on page load
+
+  async mounted() {
+    // Authentication check
     requireAuth();
-    displayUserInfo();
+
+    // Display user info
+    this.userInfo = getUserInfo();
+
+    // Load tasks from API
+    await this.loadTasks();
+  },
+
+  methods: {
+    async loadTasks() {
+      try {
+        const apiTodos = await this.apiService.fetchTodos();
+        // Map API format to front-end format
+        this.tasks = apiTodos.map(todo => ({
+          id: todo.id,
+          text: todo.title,
+          completed: todo.isCompleted,
+          createdAt: todo.createdDate
+        }));
+      } catch (error) {
+        alert('Failed to load todos from server');
+        console.error(error);
+      }
+    }
   }
 };
 
