@@ -15,11 +15,54 @@ const TodoApp = {
   },
 
   async mounted() {
-    // Authentication check
-    requireAuth();
+    // AUTHENTICATION: Enhanced auth check with debugging
+    // Instead of immediately redirecting, let's check what's happening
+    const token = getToken();
+    const userInfo = getUserInfo();
 
-    // Display user info
-    this.userInfo = getUserInfo();
+    console.log('Vue mounted - Auth check:', {
+      hasToken: !!token,
+      hasUserInfo: !!userInfo,
+      userInfo: userInfo
+    });
+
+    // If no token at all, redirect to login
+    if (!token) {
+      console.log('No token found, redirecting to login');
+      window.location.href = 'login.html';
+      return;
+    }
+
+    // If token exists but userInfo is missing, something's wrong
+    if (!userInfo) {
+      console.log('Token exists but no userInfo, clearing auth and redirecting');
+      logout();
+      return;
+    }
+
+    // Check token expiration more carefully
+    if (userInfo.expiresAt) {
+      const expirationDate = new Date(userInfo.expiresAt);
+      const now = new Date();
+      console.log('Token expiration check:', {
+        expiresAt: userInfo.expiresAt,
+        expirationDate: expirationDate,
+        now: now,
+        isExpired: expirationDate < now
+      });
+
+      if (expirationDate < now) {
+        console.log('Token expired, redirecting to login');
+        logout();
+        return;
+      }
+    }
+
+    // Authentication successful - proceed with app initialization
+    console.log('Authentication successful, loading app');
+
+    // Display user info in Vue data
+    this.userInfo = userInfo;
 
     // Load tasks from API
     await this.loadTasks();
@@ -46,17 +89,35 @@ const TodoApp = {
       }
     },
 
-    // COMPUTED PROPERTY: Task count display
-    // This demonstrates Vue's automatic dependency tracking:
-    // - Vue detects this uses this.tasks
+    // COMPUTED PROPERTY: Task count display that respects current filter
+    // This demonstrates Vue's MULTIPLE DEPENDENCY TRACKING:
+    // - Vue detects this uses BOTH this.tasks AND this.currentFilter
     // - When tasks array changes (add/delete/toggle), this automatically recalculates
-    // - The UI bound to {{ taskCountText }} automatically updates
-    // No need for manual updateTaskCount() calls scattered through the code!
+    // - When currentFilter changes (user clicks filter buttons), this also recalculates
+    // - The UI bound to {{ taskCountText }} automatically updates for BOTH changes
+    // This shows Vue's power: one computed property reacts to multiple data sources!
     taskCountText() {
-      const activeCount = this.tasks.filter(t => !t.completed).length;
-      const totalCount = this.tasks.length;
-      // Return formatted string for display
-      return `${activeCount} active / ${totalCount} total`;
+      // Switch based on current filter to show context-appropriate counts
+      switch (this.currentFilter) {
+        case 'active':
+          // When viewing active tasks, show only active count
+          const activeCount = this.tasks.filter(t => !t.completed).length;
+          // Pluralization logic: Use singular "task" when count is 1, otherwise "tasks"
+          // This provides proper grammar (e.g., "1 active task" vs "2 active tasks")
+          return `${activeCount} active task${activeCount !== 1 ? 's' : ''}`;
+
+        case 'completed':
+          // When viewing completed tasks, show only completed count
+          const completedCount = this.tasks.filter(t => t.completed).length;
+          // Same pluralization pattern for grammatical correctness
+          return `${completedCount} completed task${completedCount !== 1 ? 's' : ''}`;
+
+        default: // 'all'
+          // When viewing all tasks, show active vs total breakdown
+          const active = this.tasks.filter(t => !t.completed).length;
+          const total = this.tasks.length;
+          return `${active} active / ${total} total`;
+      }
     }
   },
 

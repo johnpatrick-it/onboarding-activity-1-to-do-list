@@ -13,12 +13,32 @@ function getUserInfo() {
 
 // Save authentication data
 function saveAuth(token, username, email, expiresAt) {
-    localStorage.setItem('authToken', token);
-    localStorage.setItem('userInfo', JSON.stringify({
-        username,
-        email,
-        expiresAt
-    }));
+    try {
+        console.log('Saving auth data:', {
+            hasToken: !!token,
+            username: username,
+            email: email,
+            expiresAt: expiresAt
+        });
+
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('userInfo', JSON.stringify({
+            username,
+            email,
+            expiresAt
+        }));
+
+        // Verify save was successful
+        const savedToken = localStorage.getItem('authToken');
+        const savedUserInfo = localStorage.getItem('userInfo');
+        console.log('Auth save verification:', {
+            tokenSaved: savedToken === token,
+            userInfoSaved: !!savedUserInfo
+        });
+    } catch (error) {
+        console.error('Error saving auth data:', error);
+        alert('Failed to save login information. Please try logging in again.');
+    }
 }
 
 // Check if user is authenticated

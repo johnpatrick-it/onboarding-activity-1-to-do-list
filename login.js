@@ -42,8 +42,28 @@ loginForm.addEventListener('submit', async (e) => {
 
         if (response.ok) {
             // Login successful - save token and redirect
+            console.log('Login successful, received data:', {
+                hasToken: !!data.token,
+                username: data.username,
+                email: data.email,
+                expiresAt: data.expiresAt
+            });
+
             saveAuth(data.token, data.username, data.email, data.expiresAt);
-            window.location.href = 'index.html';
+
+            // Verify token was saved
+            const savedToken = localStorage.getItem('authToken');
+            const savedUserInfo = localStorage.getItem('userInfo');
+            console.log('Token saved check:', {
+                tokenSaved: !!savedToken,
+                userInfoSaved: !!savedUserInfo,
+                userInfo: savedUserInfo ? JSON.parse(savedUserInfo) : null
+            });
+
+            // Small delay to ensure localStorage is committed
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 100);
         } else {
             // Login failed - display error
             showError(data.message || 'Login failed. Please check your credentials.');
