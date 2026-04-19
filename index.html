@@ -72,21 +72,105 @@
         </div>
 
         <ul id="taskList" class="task-list">
-            <!-- V-FOR with COMPUTED PROPERTY: Now using filteredTasks instead of tasks -->
-            <!-- This demonstrates Vue's reactivity chain: -->
-            <!-- 1. User clicks filter button -->
-            <!-- 2. @click updates currentFilter data -->
-            <!-- 3. filteredTasks computed property automatically recalculates -->
-            <!-- 4. v-for automatically re-renders the list with filtered results -->
-            <!-- No manual DOM manipulation needed! -->
-            <li v-for="task in filteredTasks" :key="task.id" class="task-item">
-                <span>{{ task.text }}</span>
+            <!-- V-IF: Conditional rendering for empty state -->
+            <!-- Vue completely removes/adds this element from DOM based on condition -->
+            <!-- This is different from v-show which just toggles display: none -->
+            <!-- Use v-if when the element won't toggle frequently -->
+            <div v-if="filteredTasks.length === 0" class="empty-state">
+                No tasks to display
+            </div>
+
+            <!-- V-FOR: List rendering with complete CRUD functionality -->
+            <!-- This demonstrates Vue's advanced templating features -->
+            <li
+                v-for="task in filteredTasks"
+                :key="task.id"
+                :class="['task-item', { completed: task.completed }]"
+            >
+                <!-- :CLASS BINDING EXPLAINED: -->
+                <!-- Array syntax: ['static-class', { 'conditional-class': booleanCondition }] -->
+                <!-- - 'task-item' is always applied -->
+                <!-- - 'completed' is only applied when task.completed is true -->
+                <!-- This enables the strikethrough styling for completed tasks -->
+                <!-- Vue automatically adds/removes 'completed' when task.completed changes -->
+
+                <!-- TOGGLE OPERATION: Checkbox for task completion -->
+                <!-- :CHECKED binding: Reactive attribute binding (shorthand for v-bind:checked) -->
+                <!-- The checkbox's checked state stays synced with task.completed -->
+                <!-- @CHANGE event: Triggers when checkbox is clicked -->
+                <!-- We pass task.id as parameter to identify which task to toggle -->
+                <input
+                    type="checkbox"
+                    class="task-checkbox"
+                    :checked="task.completed"
+                    @change="toggleTask(task.id)"
+                >
+
+                <!-- CONDITIONAL RENDERING: Display mode vs Edit mode -->
+                <!-- V-IF: Only renders when condition is true -->
+                <!-- These two elements swap based on task.isEditing state -->
+
+                <!-- DISPLAY MODE: Show task text when not editing -->
+                <!-- V-IF vs V-SHOW: -->
+                <!-- - v-if completely adds/removes element from DOM -->
+                <!-- - v-show just toggles CSS display property -->
+                <!-- Use v-if when toggling is infrequent (better for edit mode) -->
+                <span v-if="!task.isEditing" class="task-text">{{ task.text }}</span>
+
+                <!-- EDIT MODE: Show input field when editing -->
+                <!-- V-MODEL: Two-way data binding on task.editText -->
+                <!-- As user types, task.editText updates automatically -->
+                <!-- @KEYPRESS.ENTER: Event modifier for Enter key -->
+                <!-- @KEYUP.ESC: Event modifier for Escape key -->
+                <!-- These modifiers are Vue's shorthand for checking event.key -->
+                <input
+                    v-if="task.isEditing"
+                    v-model="task.editText"
+                    @keypress.enter="saveEdit(task)"
+                    @keyup.esc="cancelEdit(task)"
+                    class="task-input active"
+                    type="text"
+                >
+
+                <div class="task-actions">
+                    <!-- TEMPLATE TAG: Used for grouping without extra DOM element -->
+                    <!-- Unlike <div>, <template> doesn't render a wrapper element -->
+                    <!-- Perfect for v-if when you don't want extra markup -->
+
+                    <!-- DISPLAY MODE BUTTONS: Edit and Delete -->
+                    <template v-if="!task.isEditing">
+                        <!-- @CLICK with object parameter: Pass entire task object -->
+                        <button @click="startEdit(task)" class="btn-edit">Edit</button>
+                        <!-- @CLICK with id parameter: Pass just the ID -->
+                        <button @click="deleteTask(task.id)" class="btn-delete">Delete</button>
+                    </template>
+
+                    <!-- EDIT MODE BUTTONS: Save and Cancel -->
+                    <template v-if="task.isEditing">
+                        <!-- @CLICK calling methods with object parameter -->
+                        <button @click="saveEdit(task)" class="btn-save">Save</button>
+                        <button @click="cancelEdit(task)" class="btn-cancel">Cancel</button>
+                    </template>
+                </div>
             </li>
         </ul>
 
         <div class="task-summary">
-            <span id="taskCount">0 tasks</span>
-            <button id="clearCompleted" class="btn btn-clear">Clear Completed</button>
+            <!-- COMPUTED PROPERTY BINDING: Reactive task count -->
+            <!-- {{ taskCountText }} displays the computed property value -->
+            <!-- This automatically updates when tasks array changes because: -->
+            <!-- 1. taskCountText computed property depends on this.tasks -->
+            <!-- 2. When tasks change (add/delete/toggle), Vue detects the dependency -->
+            <!-- 3. Vue recalculates taskCountText -->
+            <!-- 4. Vue updates this text content in the DOM -->
+            <!-- No need for manual updateTaskCount() function! -->
+            <span>{{ taskCountText }}</span>
+
+            <!-- CLEAR COMPLETED OPERATION: Delete all completed tasks -->
+            <!-- @CLICK event handler without parameters -->
+            <!-- This demonstrates how Vue methods can work without parameters -->
+            <!-- The method will access this.tasks directly from Vue instance -->
+            <button @click="clearCompleted" class="btn btn-clear">Clear Completed</button>
         </div>
     </div>
 

@@ -44,6 +44,19 @@ const TodoApp = {
           // Show all tasks
           return this.tasks;
       }
+    },
+
+    // COMPUTED PROPERTY: Task count display
+    // This demonstrates Vue's automatic dependency tracking:
+    // - Vue detects this uses this.tasks
+    // - When tasks array changes (add/delete/toggle), this automatically recalculates
+    // - The UI bound to {{ taskCountText }} automatically updates
+    // No need for manual updateTaskCount() calls scattered through the code!
+    taskCountText() {
+      const activeCount = this.tasks.filter(t => !t.completed).length;
+      const totalCount = this.tasks.length;
+      // Return formatted string for display
+      return `${activeCount} active / ${totalCount} total`;
     }
   },
 
@@ -52,11 +65,19 @@ const TodoApp = {
       try {
         const apiTodos = await this.apiService.fetchTodos();
         // Map API format to front-end format
+        // VUE REACTIVITY: Adding edit state properties to each task
+        // These additional properties enable inline editing functionality
+        // isEditing: tracks whether this task is currently being edited
+        // editText: stores the temporary text value while editing (before save/cancel)
         this.tasks = apiTodos.map(todo => ({
           id: todo.id,
           text: todo.title,
           completed: todo.isCompleted,
-          createdAt: todo.createdDate
+          createdAt: todo.createdDate,
+          // Vue's reactivity system tracks these properties too
+          // When isEditing changes, Vue automatically shows/hides edit mode UI
+          isEditing: false,
+          editText: todo.title
         }));
       } catch (error) {
         alert('Failed to load todos from server');
@@ -90,11 +111,15 @@ const TodoApp = {
         // Add to Vue's reactive tasks array
         // Vue's reactivity system detects this change and automatically updates the DOM
         // No need for createElement, appendChild, or innerHTML manipulation!
+        // IMPORTANT: Include edit state properties for consistency with loadTasks
         this.tasks.push({
           id: apiTodo.id,
           text: apiTodo.title,
           completed: apiTodo.isCompleted,
-          createdAt: apiTodo.createdDate
+          createdAt: apiTodo.createdDate,
+          // New tasks start in non-editing mode
+          isEditing: false,
+          editText: apiTodo.title
         });
 
         // Clear the input field by updating Vue data
@@ -125,6 +150,182 @@ const TodoApp = {
         // Call the existing logout function from auth.js
         // This is a good example of Vue working alongside vanilla JS modules
         logout();
+      }
+    },
+
+    // ========== TASK CRUD OPERATIONS ==========
+    // These methods demonstrate core Vue patterns for state management
+
+    // TOGGLE OPERATION: Handle checkbox click to toggle task completion
+    // VUE PATTERN: Event handler with parameter
+    // Called by: @change="toggleTask(task.id)"
+    // This shows how Vue passes parameters from template to method
+    async toggleTask(id) {
+      // REACTIVE STATE LOOKUP: Find task in the reactive array
+      // Unlike vanilla JS where we'd query the DOM, we work with data
+      const task = this.tasks.find(t => t.id === id);
+
+      if (task) {
+        try {
+          // Calculate new completion state
+          const newCompleted = !task.completed;
+
+          // API INTEGRATION: Update backend first
+          // This ensures data consistency between client and server
+          const apiTodo = await this.apiService.updateTodo(id, {
+            title: task.text,
+            description: '',
+            isCompleted: newCompleted,
+            completedDate: newCompleted ? new Date().toISOString() : null
+          });
+
+          if (!apiTodo) return; // Unauthorized handled by API service
+
+          // VUE REACTIVITY IN ACTION: Direct property assignment
+          // In vanilla JS, we'd need to manually update the checkbox and styling
+          // With Vue, we just update the data and Vue handles the rest:
+          // - Checkbox :checked binding automatically updates
+          // - :class="{ completed: task.completed }" automatically adds/removes class
+          // - Task count (via computed property) automatically recalculates
+          task.completed = newCompleted;
+        } catch (error) {
+          alert('Failed to update todo');
+          console.error(error);
+        }
+      }
+    },
+
+    // DELETE OPERATION: Handle delete button click
+    // VUE PATTERN: Event handler with parameter
+    // Called by: @click="deleteTask(task.id)"
+    async deleteTask(id) {
+      // User confirmation before destructive action
+      if (confirm('Are you sure you want to delete this task?')) {
+        try {
+          // API call to delete from backend
+          const success = await this.apiService.deleteTodo(id);
+
+          if (success) {
+            // VUE REACTIVITY: Array filtering creates new array
+            // Vue detects the array replacement and automatically:
+            // - Removes the task's <li> element from the DOM
+            // - Updates the v-for rendering
+            // - Recalculates taskCountText computed property
+            // - Updates all UI elements bound to tasks array
+            // In vanilla JS, we'd need to manually find and remove the DOM element
+            this.tasks = this.tasks.filter(t => t.id !== id);
+          }
+        } catch (error) {
+          alert('Failed to delete todo');
+          console.error(error);
+        }
+      }
+    },
+
+    // EDIT OPERATION - START: Enter edit mode for a task
+    // VUE PATTERN: Event handler with object parameter
+    // Called by: @click="startEdit(task)"
+    // Notice we pass the entire task object, not just the ID
+    startEdit(task) {
+      // VUE REACTIVITY: Direct property assignment
+      // Setting isEditing to true triggers Vue's conditional rendering:
+      // - v-if="!task.isEditing" hides the display mode
+      // - v-if="task.isEditing" shows the edit input and buttons
+      // This is much cleaner than manually showing/hiding DOM elements!
+      task.isEditing = true;
+
+      // Reset editText to current task text
+      // This ensures the input shows the current value when entering edit mode
+      task.editText = task.text;
+    },
+
+    // EDIT OPERATION - SAVE: Save the edited task text
+    // VUE PATTERN: Event handler with object parameter
+    // Called by: @click="saveEdit(task)" or @keypress.enter="saveEdit(task)"
+    async saveEdit(task) {
+      // Validate input
+      const newText = task.editText.trim();
+      if (!newText) {
+        alert('Task cannot be empty!');
+        return;
+      }
+
+      try {
+        // API call to update backend
+        const apiTodo = await this.apiService.updateTodo(task.id, {
+          title: newText,
+          description: '',
+          isCompleted: task.completed,
+          completedDate: task.completed ? new Date().toISOString() : null
+        });
+
+        if (!apiTodo) return; // Unauthorized handled by API service
+
+        // VUE REACTIVITY: Update task properties
+        // These assignments trigger Vue to:
+        // 1. Update task.text -> display text changes when we exit edit mode
+        // 2. Set isEditing to false -> switches from edit mode to display mode
+        // Vue's conditional rendering (v-if) automatically swaps the UI
+        task.text = newText;
+        task.isEditing = false;
+      } catch (error) {
+        alert('Failed to update todo');
+        console.error(error);
+      }
+    },
+
+    // EDIT OPERATION - CANCEL: Cancel editing without saving
+    // VUE PATTERN: Event handler with object parameter
+    // Called by: @click="cancelEdit(task)" or @keyup.esc="cancelEdit(task)"
+    cancelEdit(task) {
+      // VUE REACTIVITY: Exit edit mode
+      // Simply setting isEditing to false triggers Vue to:
+      // - Hide the edit input and Save/Cancel buttons
+      // - Show the task text and Edit/Delete buttons
+      // No need to manually manipulate DOM classes or visibility!
+      task.isEditing = false;
+
+      // Reset editText to original value
+      // This discards any changes made in the input field
+      task.editText = task.text;
+    },
+
+    // CLEAR COMPLETED OPERATION: Delete all completed tasks
+    // VUE PATTERN: Event handler without parameters
+    // Called by: @click="clearCompleted"
+    // This demonstrates batch operations with Vue reactivity
+    async clearCompleted() {
+      // Filter to get completed tasks
+      const completedTasks = this.tasks.filter(t => t.completed);
+
+      // Validate there are tasks to clear
+      if (completedTasks.length === 0) {
+        alert('No completed tasks to clear!');
+        return;
+      }
+
+      // User confirmation before bulk deletion
+      if (confirm(`Delete ${completedTasks.length} completed task(s)?`)) {
+        try {
+          // API INTEGRATION: Delete all completed tasks from backend
+          // Promise.all runs all delete operations in parallel
+          // This is more efficient than deleting one at a time
+          await Promise.all(
+            completedTasks.map(task => this.apiService.deleteTodo(task.id))
+          );
+
+          // VUE REACTIVITY: Filter out all completed tasks
+          // This single assignment triggers Vue to:
+          // - Remove all completed task elements from the DOM
+          // - Update the v-for loop rendering
+          // - Recalculate taskCountText (shows new totals)
+          // - Update filteredTasks if we're on 'completed' filter
+          // All of this happens automatically with one line of code!
+          this.tasks = this.tasks.filter(t => !t.completed);
+        } catch (error) {
+          alert('Failed to clear completed todos');
+          console.error(error);
+        }
       }
     }
   }
