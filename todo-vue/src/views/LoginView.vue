@@ -10,6 +10,14 @@
       <p class="auth-subtitle">Welcome back! Please enter your credentials.</p>
 
       <!--
+        Success banner - shown after successful registration
+        Reads the query param set by RegisterView.vue ($route.query.registered)
+      -->
+      <div v-if="showRegistrationSuccess" class="success-message">
+        ✓ Registration successful! Please log in with your new account.
+      </div>
+
+      <!--
         v-if shows the error message only when errorMessage is not empty
         This replaces the manual .style.display logic from the old code
       -->
@@ -85,6 +93,14 @@ export default {
     }
   },
 
+  // COMPUTED: Check if user arrived here from registration
+  // $route.query reads URL query params (e.g., /login?registered=true)
+  computed: {
+    showRegistrationSuccess() {
+      return this.$route.query.registered === 'true'
+    }
+  },
+
   methods: {
     // Called when user submits the login form
     async handleLogin() {
@@ -120,5 +136,15 @@ export default {
   This prevents CSS from leaking and affecting other components
 -->
 <style scoped>
-/* No component-specific styles needed - using global auth-container styles */
+/* Success banner shown after registration */
+.success-message {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  color: #2e7d32;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: bold;
+}
 </style>

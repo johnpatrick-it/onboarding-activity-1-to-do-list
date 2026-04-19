@@ -83,7 +83,6 @@
 
 <script>
 import { apiService } from '../services/api.js'
-import { saveAuth } from '../services/auth.js'
 
 export default {
   name: 'RegisterView',
@@ -120,16 +119,21 @@ export default {
       this.isLoading = true
 
       try {
-        // Call API to register
-        const data = await apiService.register({
+        // Call API to register the user
+        // We do NOT auto-login after registration - user must log in manually
+        // This is a security best practice (confirms they remember their password)
+        await apiService.register({
           username: this.username,
           email: this.email,
           password: this.password
         })
 
-        // Save auth data and navigate to todos
-        saveAuth(data.token, data.username, data.email, data.expiresAt)
-        this.$router.push('/')
+        // Redirect to login page with a success message
+        // The 'query' param shows a success banner on the login page
+        this.$router.push({
+          path: '/login',
+          query: { registered: 'true' }
+        })
       } catch (error) {
         // Handle backend errors (might be single message or array of errors)
         if (error.message) {
