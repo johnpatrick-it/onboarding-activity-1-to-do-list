@@ -12,23 +12,74 @@
             <h1>My To-Do List</h1>
             <div class="user-section">
                 <span id="userInfo">{{ userInfo ? `Logged in as: ${userInfo.username}` : 'Loading...' }}</span>
-                <button id="logoutBtn" class="btn btn-logout">Logout</button>
+                <!-- VUE EVENT HANDLER: @click directive replaces addEventListener -->
+                <!-- Instead of: logoutBtn.addEventListener('click', handleLogout) -->
+                <!-- Vue's @click creates a declarative event binding right in the template -->
+                <button @click="handleLogout" class="btn btn-logout">Logout</button>
             </div>
         </div>
 
         <div class="input-section">
-            <input type="text" id="taskInput" placeholder="Enter a new task..." />
-            <button id="addBtn" class="btn btn-add">Add Task</button>
+            <!-- V-MODEL: Two-way data binding - the Vue superpower! -->
+            <!-- v-model="newTaskText" creates a bidirectional connection: -->
+            <!-- 1. When user types, newTaskText in Vue data updates automatically -->
+            <!-- 2. When we set newTaskText = '' in code, the input clears automatically -->
+            <!-- This replaces: input.value (reading) and input.value = '' (writing) -->
+
+            <!-- @KEYPRESS.ENTER: Event handler with modifier -->
+            <!-- The .enter modifier means "only trigger on Enter key" -->
+            <!-- This replaces: input.addEventListener('keypress', e => { if (e.key === 'Enter') ... }) -->
+            <input
+                type="text"
+                v-model="newTaskText"
+                @keypress.enter="addTask"
+                placeholder="Enter a new task..."
+            />
+
+            <!-- @CLICK: Click event handler -->
+            <!-- Calls the addTask method when button is clicked -->
+            <!-- This replaces: button.addEventListener('click', addTask) -->
+            <button @click="addTask" class="btn btn-add">Add Task</button>
         </div>
 
         <div class="filter-section">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="active">Active</button>
-            <button class="filter-btn" data-filter="completed">Completed</button>
+            <!-- :CLASS BINDING (shorthand for v-bind:class): Dynamic CSS classes -->
+            <!-- Array syntax: ['static-class', { 'conditional-class': condition }] -->
+            <!-- The 'active' class is added only when currentFilter === 'all' -->
+            <!-- This replaces: button.classList.add/remove('active') in vanilla JS -->
+
+            <!-- @CLICK WITH PARAMETER: Passing data to event handler -->
+            <!-- setFilter('all') passes the filter name to the method -->
+            <!-- This is cleaner than reading data-attributes in vanilla JS -->
+            <button
+                :class="['filter-btn', { active: currentFilter === 'all' }]"
+                @click="setFilter('all')"
+            >
+                All
+            </button>
+            <button
+                :class="['filter-btn', { active: currentFilter === 'active' }]"
+                @click="setFilter('active')"
+            >
+                Active
+            </button>
+            <button
+                :class="['filter-btn', { active: currentFilter === 'completed' }]"
+                @click="setFilter('completed')"
+            >
+                Completed
+            </button>
         </div>
 
         <ul id="taskList" class="task-list">
-            <li v-for="task in tasks" :key="task.id" class="task-item">
+            <!-- V-FOR with COMPUTED PROPERTY: Now using filteredTasks instead of tasks -->
+            <!-- This demonstrates Vue's reactivity chain: -->
+            <!-- 1. User clicks filter button -->
+            <!-- 2. @click updates currentFilter data -->
+            <!-- 3. filteredTasks computed property automatically recalculates -->
+            <!-- 4. v-for automatically re-renders the list with filtered results -->
+            <!-- No manual DOM manipulation needed! -->
+            <li v-for="task in filteredTasks" :key="task.id" class="task-item">
                 <span>{{ task.text }}</span>
             </li>
         </ul>
