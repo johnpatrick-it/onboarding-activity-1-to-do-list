@@ -1,0 +1,10 @@
+{
+  "disabledMcpjsonServers": [
+    "atlassian"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(git add *)"
+    ]
+  }
+}
