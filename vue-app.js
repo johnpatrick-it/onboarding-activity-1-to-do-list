@@ -1,13 +1,17 @@
-// Basic Vue app setup
 const { createApp } = Vue;
 
 const TodoApp = {
   data() {
     return {
-      message: 'Vue.js is working!'
+      message: 'Vue.js with API service ready!',
+      apiService: new ApiService()
     }
+  },
+  mounted() {
+    // Initialize authentication on page load
+    requireAuth();
+    displayUserInfo();
   }
 };
 
-// Mount the app
 createApp(TodoApp).mount('#app');
