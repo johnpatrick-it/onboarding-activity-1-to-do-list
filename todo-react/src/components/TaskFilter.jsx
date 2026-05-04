@@ -19,18 +19,14 @@ function TaskFilter({ currentFilter, onFilterChange }) {
   // JSX looks like HTML but it's JavaScript!
   return (
     <div className="filter-section">
-      {/*
-        REACT MAP - replaces Vue's v-for
-        In Vue: v-for="filter in filters"
-        In React: filters.map()
-      */}
+      {/* REACT MAP - replaces Vue's v-for */}
       {filters.map((filter) => (
         <button
-          key={filter.value}  {/* React needs 'key' for lists (like Vue's :key) */}
-          className={`filter-btn ${currentFilter === filter.value ? 'active' : ''}`}  {/* Dynamic classes */}
-          onClick={() => onFilterChange(filter.value)}  {/* Event handler - calls parent function */}
+          key={filter.value}
+          className={`filter-btn ${currentFilter === filter.value ? 'active' : ''}`}
+          onClick={() => onFilterChange(filter.value)}
         >
-          {filter.label}  {/* Display the text - like Vue's {{ }} */}
+          {filter.label}
         </button>
       ))}
     </div>
